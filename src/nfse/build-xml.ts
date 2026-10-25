@@ -62,12 +62,16 @@ import type {
   VServPrest,
 } from './domain.js';
 
+import { DEFAULT_DPS_LAYOUT, type DpsLayout } from './layout.js';
+
 const NFSE_NS = 'http://www.sped.fazenda.gov.br/nfse';
 const DSIG_NS = 'http://www.w3.org/2000/09/xmldsig#';
 
 export interface BuildDpsXmlOptions {
   /** Emit the `<?xml ... ?>` declaration. Default `true`. */
   readonly includeXmlDeclaration?: boolean;
+  /** Leiaute do XML. Default `'v1.01'` (produção até 30/11/2026). Ver {@link DpsLayout}. */
+  readonly layout?: DpsLayout;
 }
 
 const xmlBuilder = new XMLBuilder({
@@ -86,7 +90,7 @@ export function buildDpsXml(dps: DPS, options?: BuildDpsXmlOptions): string {
     DPS: {
       [`${ATTR_PREFIX}xmlns`]: NFSE_NS,
       [`${ATTR_PREFIX}versao`]: dps.versao,
-      infDPS: buildInfDPS(dps.infDPS),
+      infDPS: buildInfDPS(dps.infDPS, options?.layout ?? DEFAULT_DPS_LAYOUT),
       ...onlyDefined('Signature', dps.signature ? buildSignature(dps.signature) : undefined),
     },
   };
@@ -97,7 +101,8 @@ export function buildDpsXml(dps: DPS, options?: BuildDpsXmlOptions): string {
     : `<?xml version="1.0" encoding="UTF-8"?>${body}`;
 }
 
-function buildInfDPS(inf: InfDPS): object {
+function buildInfDPS(inf: InfDPS, layout: DpsLayout): object {
+  const nt009 = layout === 'nt009-r1';
   return {
     [`${ATTR_PREFIX}Id`]: inf.Id,
     tpAmb: inf.tpAmb,
@@ -108,15 +113,16 @@ function buildInfDPS(inf: InfDPS): object {
     dCompet: formatDate(inf.dCompet),
     tpEmit: inf.tpEmit,
     ...onlyDefined('cMotivoEmisTI', inf.cMotivoEmisTI),
+    ...(nt009 ? onlyDefined('finNFSe', inf.IBSCBS?.finNFSe) : {}),
     ...onlyDefined('chNFSeRej', inf.chNFSeRej),
     cLocEmi: inf.cLocEmi,
     ...onlyDefined('subst', inf.subst && buildSubstituicao(inf.subst)),
     prest: buildInfoPrestador(inf.prest),
     ...onlyDefined('toma', inf.toma && buildInfoPessoa(inf.toma)),
     ...onlyDefined('interm', inf.interm && buildInfoPessoa(inf.interm)),
-    serv: buildServ(inf.serv),
-    valores: buildInfoValores(inf.valores),
-    ...onlyDefined('IBSCBS', inf.IBSCBS && buildRtcInfoIbsCbs(inf.IBSCBS)),
+    serv: buildServ(inf.serv, layout),
+    valores: buildInfoValores(inf.valores, layout),
+    ...onlyDefined('IBSCBS', inf.IBSCBS && buildRtcInfoIbsCbs(inf.IBSCBS, layout)),
   };
 }
 
@@ -214,10 +220,10 @@ function buildEnderObraEvento(e: EnderObraEvento): object {
   return buildEnderecoSimples(e);
 }
 
-function buildServ(s: Serv): object {
+function buildServ(s: Serv, layout: DpsLayout): object {
   return {
     locPrest: buildLocPrest(s.locPrest),
-    cServ: buildCServ(s.cServ),
+    cServ: buildCServ(s.cServ, layout),
     ...onlyDefined('comExt', s.comExt && buildComExterior(s.comExt)),
     ...onlyDefined('obra', s.obra && buildInfoObra(s.obra)),
     ...onlyDefined('atvEvento', s.atvEvento && buildAtvEvento(s.atvEvento)),
@@ -230,7 +236,17 @@ function buildLocPrest(l: LocPrest): object {
   return { cPaisPrestacao: l.cPaisPrestacao };
 }
 
-function buildCServ(c: CServ): object {
+function buildCServ(c: CServ, layout: DpsLayout): object {
+  // NT 009 r1: `xDescServ` passa a ser o último elemento de `cServ`.
+  if (layout === 'nt009-r1') {
+    return {
+      cTribNac: c.cTribNac,
+      ...onlyDefined('cTribMun', c.cTribMun),
+      ...onlyDefined('cNBS', c.cNBS),
+      ...onlyDefined('cIntContrib', c.cIntContrib),
+      xDescServ: c.xDescServ,
+    };
+  }
   return {
     cTribNac: c.cTribNac,
     ...onlyDefined('cTribMun', c.cTribMun),
@@ -296,11 +312,13 @@ function buildInfoItemPed(g: InfoItemPed): object {
   return { xItemPed: [...g.xItemPed] };
 }
 
-function buildInfoValores(v: InfoValores): object {
+function buildInfoValores(v: InfoValores, layout: DpsLayout): object {
   return {
     vServPrest: buildVServPrest(v.vServPrest),
     ...onlyDefined('vDescCondIncond', v.vDescCondIncond && buildVDescCondIncond(v.vDescCondIncond)),
-    ...onlyDefined('vDedRed', v.vDedRed && buildInfoDedRed(v.vDedRed)),
+    ...(layout === 'nt009-r1'
+      ? onlyDefined('vAjusteBC', v.vDedRed && buildInfoAjusteBC(v.vDedRed))
+      : onlyDefined('vDedRed', v.vDedRed && buildInfoDedRed(v.vDedRed))),
     trib: buildInfoTributacao(v.trib),
   };
 }
@@ -317,6 +335,15 @@ function buildVDescCondIncond(v: VDescCondIncond): object {
     ...onlyDefined('vDescIncond', formatOptionalDecimal(v.vDescIncond)),
     ...onlyDefined('vDescCond', formatOptionalDecimal(v.vDescCond)),
   };
+}
+
+/** NT 009 r1: `vDedRed` virou `vAjusteBC` (`pDR`/`vDR` → `pAjusteBCISSQN`/`vAjusteBCISSQN`). */
+function buildInfoAjusteBC(d: InfoDedRed): object {
+  if ('pDR' in d) return { pAjusteBCISSQN: formatDecimal(d.pDR) };
+  if ('vDR' in d) return { vAjusteBCISSQN: formatDecimal(d.vDR) };
+  throw new Error(
+    "layout 'nt009-r1': dedução por documentos (vDedRed/documentos → vAjusteBC/documentos) ainda não é suportada; use pDR ou vDR",
+  );
 }
 
 function buildInfoDedRed(d: InfoDedRed): object {
@@ -438,9 +465,10 @@ function buildTribTotalPercent(p: TribTotalPercent): object {
   };
 }
 
-function buildRtcInfoIbsCbs(r: RtcInfoIbsCbs): object {
+function buildRtcInfoIbsCbs(r: RtcInfoIbsCbs, layout: DpsLayout): object {
   return {
-    finNFSe: r.finNFSe,
+    // NT 009 r1: `finNFSe` sobe para `infDPS`.
+    ...(layout === 'nt009-r1' ? {} : { finNFSe: r.finNFSe }),
     ...onlyDefined('indFinal', r.indFinal),
     cIndOp: r.cIndOp,
     ...onlyDefined('tpOper', r.tpOper),
@@ -448,8 +476,8 @@ function buildRtcInfoIbsCbs(r: RtcInfoIbsCbs): object {
     ...onlyDefined('tpEnteGov', r.tpEnteGov),
     indDest: r.indDest,
     ...onlyDefined('dest', r.dest && buildRtcInfoDest(r.dest)),
-    ...onlyDefined('imovel', r.imovel && buildRtcInfoImovel(r.imovel)),
-    valores: buildRtcInfoValoresIbsCbs(r.valores),
+    ...onlyDefined('imovel', r.imovel && buildRtcInfoImovelFor(r.imovel, layout)),
+    valores: buildRtcInfoValoresIbsCbs(r.valores, layout),
   };
 }
 
@@ -467,6 +495,15 @@ function buildRtcInfoDest(d: RtcInfoDest): object {
   };
 }
 
+function buildRtcInfoImovelFor(i: RtcInfoImovel, layout: DpsLayout): object {
+  if (layout === 'nt009-r1') {
+    throw new Error(
+      "layout 'nt009-r1': o grupo imovel foi reestruturado (cMun/gLocacao/gUnidImob) e ainda não é suportado",
+    );
+  }
+  return buildRtcInfoImovel(i);
+}
+
 function buildRtcInfoImovel(i: RtcInfoImovel): object {
   return {
     ...onlyDefined('inscImobFisc', i.inscImobFisc),
@@ -479,10 +516,36 @@ function buildImovelIdentificacao(i: ImovelIdentificacao): object {
   return { end: buildEnderObraEvento(i.end) };
 }
 
-function buildRtcInfoValoresIbsCbs(v: RtcInfoValoresIbsCbs): object {
+function buildRtcInfoValoresIbsCbs(v: RtcInfoValoresIbsCbs, layout: DpsLayout): object {
+  if (layout === 'nt009-r1') {
+    if (v.gReeRepRes) {
+      throw new Error(
+        "layout 'nt009-r1': gReeRepRes foi substituído por vAjusteBC e ainda não é suportado",
+      );
+    }
+    return { trib: buildRtcInfoTribIbsCbsNt009(v.trib) };
+  }
   return {
     ...onlyDefined('gReeRepRes', v.gReeRepRes && buildRtcInfoReeRepRes(v.gReeRepRes)),
     trib: buildRtcInfoTributosIbsCbs(v.trib),
+  };
+}
+
+/** NT 009 r1: `CST`/`cClassTrib` saem de `gIBSCBS`, que passa a existir só se houver crédito presumido, tributação regular ou diferimento. */
+function buildRtcInfoTribIbsCbsNt009(t: RtcInfoTributosIbsCbs): object {
+  const s = t.gIBSCBS;
+  const rest = {
+    ...onlyDefined('cCredPres', s.cCredPres),
+    ...onlyDefined(
+      'gTribRegular',
+      s.gTribRegular && buildRtcInfoTributosTribRegular(s.gTribRegular),
+    ),
+    ...onlyDefined('gDif', s.gDif && buildRtcInfoTributosDif(s.gDif)),
+  };
+  return {
+    CST: s.CST,
+    cClassTrib: s.cClassTrib,
+    ...(Object.keys(rest).length > 0 ? { gIBSCBS: rest } : {}),
   };
 }
 

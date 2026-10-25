@@ -43,6 +43,7 @@ import {
   existsDpsStatus as existsDpsStatusInternal,
   fetchDpsStatus as fetchDpsStatusInternal,
 } from './nfse/fetch-dps-status.js';
+import type { DpsLayout } from './nfse/layout.js';
 import type { NfseQueryResult } from './nfse/types.js';
 import {
   createInMemoryParametrosCache,
@@ -164,6 +165,13 @@ export interface NfseClientConfig {
    * header, cap de 1h para valores absurdos).
    */
   readonly retryPolicy?: RetryPolicy;
+  /**
+   * Leiaute de DPS padrão deste cliente (emissão, lote e substituição). Default
+   * `'v1.01'` (produção até 30/11/2026). Use `'nt009-r1'` para a NT 009 release 1
+   * (Produção Restrita; Produção em 01/12/2026). Pode ser sobrescrito por chamada
+   * em `EmitOptions.layout`.
+   */
+  readonly dpsLayout?: DpsLayout;
 }
 
 export interface FetchByNsuParams extends FetchByNsuOptions {
@@ -187,6 +195,7 @@ export class NfseClient {
   private readonly logger: Logger;
   private readonly dispatcherOverride: Dispatcher | undefined;
   private readonly cepValidator: CepValidator | undefined;
+  private readonly dpsLayout: DpsLayout | undefined;
   private readonly retryStore: RetryStore | undefined;
   private readonly dpsCounter: DpsCounter | undefined;
   private readonly parametrosCache: ParametrosCache;
@@ -202,6 +211,7 @@ export class NfseClient {
     this.logger = config.logger ?? noopLogger;
     this.dispatcherOverride = config.dispatcher;
     this.cepValidator = config.cepValidator;
+    this.dpsLayout = config.dpsLayout;
     this.retryStore = config.retryStore;
     this.dpsCounter = config.dpsCounter;
     this.parametrosCache = config.parametrosCache ?? createInMemoryParametrosCache();
@@ -278,9 +288,11 @@ export class NfseClient {
   async emitir(params: EmitirParams): Promise<EmitirResult | DpsDryRunResult> {
     const state = await this.ensureState();
     const cepValidator = params.cepValidator ?? this.cepValidator;
+    const layout = params.layout ?? this.dpsLayout;
     const mergedParams: EmitirParams = {
       ...params,
       ...(cepValidator ? { cepValidator } : {}),
+      ...(layout !== undefined ? { layout } : {}),
     };
     const deps: Parameters<typeof emitSeguro>[0] = {
       httpClient: state.sefin,
@@ -348,6 +360,7 @@ export class NfseClient {
   async emitirEmLote(dpsList: readonly DPS[], options?: EmitLoteOptions): Promise<EmitLoteResult> {
     const state = await this.ensureState();
     const mergedCepValidator = options?.cepValidator ?? this.cepValidator;
+    const layout = options?.layout ?? this.dpsLayout;
     const merged: EmitLoteOptions = {
       ...(options?.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
       ...(options?.stopOnError !== undefined ? { stopOnError: options.stopOnError } : {}),
@@ -359,12 +372,14 @@ export class NfseClient {
         ? { skipCpfCnpjValidation: options.skipCpfCnpjValidation }
         : {}),
       ...(mergedCepValidator !== undefined ? { cepValidator: mergedCepValidator } : {}),
+      ...(layout !== undefined ? { layout } : {}),
     };
     return emitManyInternal(state.sefin, state.certificate, dpsList, merged);
   }
 
   private mergeEmitOptions(options: EmitOptions | undefined): EmitOptions {
     const cepValidator = options?.cepValidator ?? this.cepValidator;
+    const layout = options?.layout ?? this.dpsLayout;
     return {
       ...(options?.skipValidation !== undefined ? { skipValidation: options.skipValidation } : {}),
       ...(options?.skipCepValidation !== undefined
@@ -374,6 +389,7 @@ export class NfseClient {
         ? { skipCpfCnpjValidation: options.skipCpfCnpjValidation }
         : {}),
       ...(cepValidator !== undefined ? { cepValidator } : {}),
+      ...(layout !== undefined ? { layout } : {}),
     };
   }
 
@@ -421,9 +437,11 @@ export class NfseClient {
   async substituir(params: SubstituirParams): Promise<SubstituirResult> {
     const state = await this.ensureState();
     const retryStore = params.retryStore ?? this.retryStore;
+    const layout = params.layout ?? this.dpsLayout;
     const merged: SubstituirParams = {
       ...params,
       ...(retryStore ? { retryStore } : {}),
+      ...(layout !== undefined ? { layout } : {}),
     };
     return substituirInternal(state.sefin, state.certificate, this.retryPolicy, merged);
   }

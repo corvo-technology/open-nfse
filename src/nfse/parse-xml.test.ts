@@ -430,3 +430,48 @@ describe('parseNfseXml — error surfaces', () => {
     );
   });
 });
+
+describe('parseNfseXml — NT 009 release 1 layout (synthetic)', () => {
+  const base = readFileSync(SAMPLE_PATH, 'utf-8');
+  const ibscbsDps =
+    '<IBSCBS><cIndOp>040101</cIndOp><indDest>0</indDest><valores><trib><CST>000</CST><cClassTrib>000001</cClassTrib><gIBSCBS><cCredPres>01</cCredPres></gIBSCBS></trib></valores></IBSCBS>';
+
+  // Move finNFSe/xDescServ/vAjusteBC/IBSCBS into the new positions inside the captured DPS.
+  const nt009 = base
+    .replace('<cLocEmi>', '<finNFSe>0</finNFSe><cLocEmi>')
+    .replace(
+      /(<cServ>.*?)(<xDescServ>.*?<\/xDescServ>)(.*?<\/cServ>)/s,
+      (_m, a: string, x: string, c: string) => `${a}${c.replace('</cServ>', '')}${x}</cServ>`,
+    )
+    .replace('<trib>', '<vAjusteBC><vAjusteBCISSQN>10</vAjusteBCISSQN></vAjusteBC><trib>')
+    .replace('</valores></infDPS>', `</valores>${ibscbsDps}</infDPS>`);
+  const nfse = parseNfseXml(nt009);
+  const inf = nfse.infNFSe.DPS.infDPS;
+
+  it('reads finNFSe from infDPS into IBSCBS', () => {
+    expect(inf.IBSCBS?.finNFSe).toBe('0');
+  });
+
+  it('reads CST and cClassTrib placed directly under trib, keeping gIBSCBS extras', () => {
+    expect(inf.IBSCBS?.valores.trib.gIBSCBS).toEqual({
+      CST: '000',
+      cClassTrib: '000001',
+      cCredPres: '01',
+    });
+  });
+
+  it('maps vAjusteBC back to vDedRed', () => {
+    expect(inf.valores.vDedRed).toEqual({ vDR: 10 });
+  });
+
+  it('accepts xDescServ at the end of cServ', () => {
+    expect(inf.serv.cServ.xDescServ).toContain('Pagamento de mensalidade plano');
+  });
+
+  it('reads vCalcAjusteBCISSQN into vCalcDR on the NFS-e values', () => {
+    const swapped = parseNfseXml(
+      nt009.replace('<vLiq>', '<vCalcAjusteBCISSQN>10</vCalcAjusteBCISSQN><vLiq>'),
+    );
+    expect(swapped.infNFSe.valores.vCalcDR).toBe(10);
+  });
+});

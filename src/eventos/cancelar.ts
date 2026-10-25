@@ -204,6 +204,7 @@ export async function substituir(
       ? { skipCpfCnpjValidation: params.skipCpfCnpjValidation }
       : {}),
     ...(params.cepValidator ? { cepValidator: params.cepValidator } : {}),
+    ...(params.layout !== undefined ? { layout: params.layout } : {}),
   };
 
   const r = await emitDpsProntaSeguro(

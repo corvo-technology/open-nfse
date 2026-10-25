@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**NT 009 release 1** (Produção Restrita desde 20/10/2026; Produção em **01/12/2026**) como leiaute **opt-in**: nada muda para quem não passar `layout`. Até 30/11/2026 a produção segue no leiaute da NT 004 v2.0 (`'v1.01'`, default).
+
+### Added
+
+- **`layout: 'v1.01' | 'nt009-r1'`** em `buildDpsXml`, `validateDpsXml`, `EmitOptions` (`emitirDpsPronta`, `emitir`, `emitirEmLote`, `substituir`) e `NfseClientConfig.dpsLayout`. O `'nt009-r1'` serializa a DPS no novo leiaute e valida contra o bundle `schemas/1.01-prodrest-20261020/`:
+  - `finNFSe` sobe de `IBSCBS` para `infDPS` (logo após `tpEmit`/`cMotivoEmisTI`);
+  - `CST` e `cClassTrib` ficam direto em `IBSCBS/valores/trib`; `gIBSCBS` só existe com `cCredPres`, `gTribRegular` ou `gDif`;
+  - `vDedRed` vira `vAjusteBC` (`pDR`/`vDR` → `pAjusteBCISSQN`/`vAjusteBCISSQN`);
+  - `xDescServ` passa a ser o último elemento de `cServ`.
+- **`parseNfseXml` lê os dois leiautes** (inclusive a NFS-e devolvida pela Sefin no novo): `finNFSe` de `infDPS`, `CST`/`cClassTrib` em `trib`, `vAjusteBC` → `vDedRed`, `vCalcAjusteBCISSQN` → `vCalcDR`.
+- Script `prepare` (`npm run build`), para instalar a lib como dependência via git.
+
+### Not supported yet (lançam erro com `layout: 'nt009-r1'`)
+
+- Dedução por documentos (`vDedRed/documentos` → `vAjusteBC/documentos`), `gReeRepRes` (substituído por `vAjusteBC`) e o grupo `imovel` (reestruturado em `cMun`/`gLocacao`/`gUnidImob`).
+- Campos do Simples da NT 009 v1.01 (`regApIBSCBSSN`, `cAtvSN`, `opSimpNac=4`, `gTribSN`, `vReceitaBrutaSN`): ainda sem XSD publicado.
+
 ## [0.11.0] — 2026-08-24
 
 Adoção do bundle XSD oficial **`esquemas-nfse-rtc-v1-01-20260727`** (CNPJ alfanumérico), em produção na SEFIN Nacional desde **10/08/2026** conforme o log oficial de Atualizações e Implantações do portal gov.br/nfse. Mesma versão de leiaute (RTC v1.01); mudam apenas patterns de tipos simples.

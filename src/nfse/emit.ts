@@ -22,11 +22,22 @@ import { buildDpsXml } from './build-xml.js';
 import { collectCepsFromDps, collectIdentifiersFromDps } from './collect-from-dps.js';
 import type { DPS, NFSe } from './domain.js';
 import { type DpsCounter, MissingDpsCounterError } from './dps-counter.js';
+import type { DpsLayout } from './layout.js';
 import { parseNfseXml } from './parse-xml.js';
 import { signDpsXml } from './sign-xml.js';
 import { validateDpsXml } from './validate-xml.js';
 
+/** `{ layout }` só quando definido (exactOptionalPropertyTypes). */
+const layoutOption = (layout: DpsLayout | undefined): { layout?: DpsLayout } =>
+  layout === undefined ? {} : { layout };
+
 export interface EmitOptions {
+  /**
+   * Leiaute do XML da DPS (e do XSD usado na validação local). Default `'v1.01'`
+   * (produção até 30/11/2026). Use `'nt009-r1'` para a NT 009 release 1
+   * (Produção Restrita; Produção em 01/12/2026). Ver {@link DpsLayout}.
+   */
+  readonly layout?: DpsLayout;
   /**
    * Quando `true`, a pipeline só constrói e assina o XML — sem enviar para a
    * Receita. Útil para previews, testes locais e inspeção offline.
@@ -131,9 +142,9 @@ export async function emitDpsPronta(
   if (!options?.skipCpfCnpjValidation) {
     runIdentifierValidation(dps);
   }
-  const xmlUnsigned = buildDpsXml(dps);
+  const xmlUnsigned = buildDpsXml(dps, layoutOption(options?.layout));
   if (!options?.skipValidation) {
-    await validateDpsXml(xmlUnsigned);
+    await validateDpsXml(xmlUnsigned, layoutOption(options?.layout));
   }
   if (!options?.skipCepValidation) {
     await runCepValidation(dps, options?.cepValidator);
@@ -177,9 +188,9 @@ export async function emitDpsProntaSeguro(
   if (!options?.skipCpfCnpjValidation) {
     runIdentifierValidation(dps);
   }
-  const xmlUnsigned = buildDpsXml(dps);
+  const xmlUnsigned = buildDpsXml(dps, layoutOption(options?.layout));
   if (!options?.skipValidation) {
-    await validateDpsXml(xmlUnsigned);
+    await validateDpsXml(xmlUnsigned, layoutOption(options?.layout));
   }
   if (!options?.skipCepValidation) {
     await runCepValidation(dps, options?.cepValidator);
@@ -290,6 +301,8 @@ export interface EmitLoteOptions {
   readonly skipCepValidation?: boolean;
   /** Propagado. Ver `EmitOptions.skipCpfCnpjValidation`. */
   readonly skipCpfCnpjValidation?: boolean;
+  /** Propagado. Ver `EmitOptions.layout`. */
+  readonly layout?: DpsLayout;
   /**
    * Validador de CEP compartilhado pelo lote. Crie uma instância única com
    * cache externo para deduplicar lookups entre as DPS. Ver `createViaCepValidator`.
@@ -329,6 +342,7 @@ export async function emitMany(
       ? { skipCpfCnpjValidation: options.skipCpfCnpjValidation }
       : {}),
     ...(options?.cepValidator !== undefined ? { cepValidator: options.cepValidator } : {}),
+    ...layoutOption(options?.layout),
   };
   const items: EmitLoteItem[] = new Array(dpsList.length);
   let nextIndex = 0;
@@ -466,9 +480,9 @@ export async function emitSeguro(
   if (!params.skipCpfCnpjValidation) {
     runIdentifierValidation(dpsParaValidar);
   }
-  const xmlPlaceholder = buildDpsXml(dpsParaValidar);
+  const xmlPlaceholder = buildDpsXml(dpsParaValidar, layoutOption(params.layout));
   if (!params.skipValidation) {
-    await validateDpsXml(xmlPlaceholder);
+    await validateDpsXml(xmlPlaceholder, layoutOption(params.layout));
   }
   if (!params.skipCepValidation) {
     await runCepValidation(dpsParaValidar, params.cepValidator);
@@ -496,7 +510,7 @@ export async function emitSeguro(
   // 5. Rebuild com nDPS real + sign. Não re-valido XSD — estrutura é
   //    idêntica, só o valor numérico mudou (e já sabemos que bate no pattern).
   const dpsReal = buildDps({ ...params, nDPS: nDpsReal });
-  const xmlUnsigned = buildDpsXml(dpsReal);
+  const xmlUnsigned = buildDpsXml(dpsReal, layoutOption(params.layout));
   const xmlSigned = signDpsXml(xmlUnsigned, deps.certificate);
   const dpsXmlGZipB64 = gzipBase64Encode(xmlSigned);
 

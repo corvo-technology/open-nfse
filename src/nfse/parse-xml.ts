@@ -195,7 +195,10 @@ function parseEnderecoEmitente(node: XmlObject): EnderecoEmitente {
 
 function parseValoresNFSe(node: XmlObject): ValoresNFSe {
   return {
-    ...optionalAssign('vCalcDR', optionalNumber(node, 'vCalcDR')),
+    ...optionalAssign(
+      'vCalcDR',
+      optionalNumber(node, 'vCalcDR') ?? optionalNumber(node, 'vCalcAjusteBCISSQN'),
+    ),
     ...optionalAssign('tpBM', optionalText(node, 'tpBM') as TipoBeneficioMunicipal | undefined),
     ...optionalAssign('vCalcBM', optionalNumber(node, 'vCalcBM')),
     ...optionalAssign('vBC', optionalNumber(node, 'vBC')),
@@ -237,7 +240,12 @@ function parseInfDPS(node: XmlObject): InfDPS {
     ...optionalAssign('interm', mapIfPresent(optionalChild(node, 'interm'), parseInfoPessoa)),
     serv: parseServ(requireChild(node, 'serv')),
     valores: parseInfoValores(requireChild(node, 'valores')),
-    ...optionalAssign('IBSCBS', mapIfPresent(optionalChild(node, 'IBSCBS'), parseRtcInfoIbsCbs)),
+    ...optionalAssign(
+      'IBSCBS',
+      mapIfPresent(optionalChild(node, 'IBSCBS'), (n) =>
+        parseRtcInfoIbsCbs(n, optionalText(node, 'finNFSe')),
+      ),
+    ),
   };
 }
 
@@ -249,9 +257,15 @@ function parseSubstituicao(node: XmlObject): Substituicao {
   };
 }
 
-function parseRtcInfoIbsCbs(node: XmlObject): RtcInfoIbsCbs {
+/**
+ * `finNFSe` vive em `IBSCBS` no leiaute v1.01 e em `infDPS` na NT 009 r1;
+ * `infDpsFinNFSe` é o valor lido de `infDPS` (quando existir).
+ */
+function parseRtcInfoIbsCbs(node: XmlObject, infDpsFinNFSe?: string): RtcInfoIbsCbs {
+  const finNFSe = optionalText(node, 'finNFSe') ?? infDpsFinNFSe;
+  if (finNFSe === undefined) throw new InvalidXmlError('elemento <finNFSe> ausente');
   return {
-    finNFSe: requireText(node, 'finNFSe') as FinalidadeNFSe,
+    finNFSe: finNFSe as FinalidadeNFSe,
     ...optionalAssign('indFinal', optionalText(node, 'indFinal') as IndicadorFinal | undefined),
     cIndOp: requireText(node, 'cIndOp'),
     ...optionalAssign('tpOper', optionalText(node, 'tpOper') as TipoOperacao | undefined),
@@ -376,8 +390,30 @@ function parseRtcListaDocFornec(node: XmlObject): RtcListaDocFornec {
 }
 
 function parseRtcInfoTributosIbsCbs(node: XmlObject): RtcInfoTributosIbsCbs {
+  // NT 009 r1: CST/cClassTrib ficam direto em `trib`; `gIBSCBS` guarda só o restante (opcional).
+  if (optionalText(node, 'CST') !== undefined) {
+    const rest = optionalChild(node, 'gIBSCBS');
+    return {
+      gIBSCBS: {
+        CST: requireText(node, 'CST'),
+        cClassTrib: requireText(node, 'cClassTrib'),
+        ...(rest ? sitClasExtras(rest) : {}),
+      },
+    };
+  }
   return {
     gIBSCBS: parseRtcInfoTributosSitClas(requireChild(node, 'gIBSCBS')),
+  };
+}
+
+function sitClasExtras(node: XmlObject): Partial<RtcInfoTributosSitClas> {
+  return {
+    ...optionalAssign('cCredPres', optionalText(node, 'cCredPres')),
+    ...optionalAssign(
+      'gTribRegular',
+      mapIfPresent(optionalChild(node, 'gTribRegular'), parseRtcInfoTributosTribRegular),
+    ),
+    ...optionalAssign('gDif', mapIfPresent(optionalChild(node, 'gDif'), parseRtcInfoTributosDif)),
   };
 }
 
@@ -612,7 +648,13 @@ function parseInfoValores(node: XmlObject): InfoValores {
       'vDescCondIncond',
       mapIfPresent(optionalChild(node, 'vDescCondIncond'), parseVDescCondIncond),
     ),
-    ...optionalAssign('vDedRed', mapIfPresent(optionalChild(node, 'vDedRed'), parseInfoDedRed)),
+    ...optionalAssign(
+      'vDedRed',
+      mapIfPresent(
+        optionalChild(node, 'vDedRed') ?? optionalChild(node, 'vAjusteBC'),
+        parseInfoDedRed,
+      ),
+    ),
     trib: parseInfoTributacao(requireChild(node, 'trib')),
   };
 }
@@ -632,9 +674,10 @@ function parseVDescCondIncond(node: XmlObject): VDescCondIncond {
 }
 
 function parseInfoDedRed(node: XmlObject): InfoDedRed {
-  const pDR = optionalNumber(node, 'pDR');
+  // NT 009 r1 renomeou vDedRed → vAjusteBC (pDR/vDR → pAjusteBCISSQN/vAjusteBCISSQN).
+  const pDR = optionalNumber(node, 'pDR') ?? optionalNumber(node, 'pAjusteBCISSQN');
   if (pDR !== undefined) return { pDR };
-  const vDR = optionalNumber(node, 'vDR');
+  const vDR = optionalNumber(node, 'vDR') ?? optionalNumber(node, 'vAjusteBCISSQN');
   if (vDR !== undefined) return { vDR };
   const documentos = optionalChild(node, 'documentos');
   if (documentos) return { documentos: parseListaDocDedRed(documentos) };

@@ -1,5 +1,10 @@
 import { XsdValidationError, type XsdViolation } from '../errors/validation.js';
-import { RTC_V1_01_SCHEMAS } from './_rtc-schemas.generated.js';
+import {
+  RTC_NT009_R1_SCHEMAS,
+  RTC_V1_01_SCHEMAS,
+  type RtcSchemaFile,
+} from './_rtc-schemas.generated.js';
+import { DEFAULT_DPS_LAYOUT, type DpsLayout } from './layout.js';
 
 const DPS_SCHEMA_FILE = 'DPS_v1.01.xsd';
 const PED_REG_EVENTO_SCHEMA_FILE = 'pedRegEvento_v1.01.xsd';
@@ -12,6 +17,8 @@ export interface ValidateDpsXmlOptions {
    * Default: `true` (lança `XsdValidationError` se inválido).
    */
   readonly throwOnInvalid?: boolean;
+  /** Leiaute (bundle de XSDs) contra o qual validar. Default `'v1.01'`. Ver {@link DpsLayout}. */
+  readonly layout?: DpsLayout;
 }
 
 export interface ValidateDpsXmlResult {
@@ -29,14 +36,17 @@ export interface ValidateDpsXmlResult {
  * chamadas seguintes reusam o runtime, então em cargas repetitivas (emissão em
  * lote) a amortização é quase imediata.
  */
-export async function validateDpsXml(xml: string): Promise<undefined>;
 export async function validateDpsXml(
   xml: string,
-  options: { throwOnInvalid: false },
+  options?: ValidateDpsXmlOptions & { throwOnInvalid?: true },
+): Promise<undefined>;
+export async function validateDpsXml(
+  xml: string,
+  options: ValidateDpsXmlOptions & { throwOnInvalid: false },
 ): Promise<ValidateDpsXmlResult>;
 export async function validateDpsXml(
   xml: string,
-  options: { throwOnInvalid: true },
+  options: ValidateDpsXmlOptions & { throwOnInvalid: true },
 ): Promise<undefined>;
 export async function validateDpsXml(
   xml: string,
@@ -92,7 +102,7 @@ async function validateAgainst(
   options: ValidateDpsXmlOptions | undefined,
 ): Promise<ValidateDpsXmlResult | undefined> {
   const throwOnInvalid = options?.throwOnInvalid ?? true;
-  const result = await runValidation(xml, mainSchemaFile, xmlLabel);
+  const result = await runValidation(xml, mainSchemaFile, xmlLabel, options?.layout);
 
   if (result.valid) {
     return throwOnInvalid ? undefined : result;
@@ -107,17 +117,22 @@ async function runValidation(
   xml: string,
   mainSchemaFile: string,
   xmlLabel: string,
+  layout: DpsLayout = DEFAULT_DPS_LAYOUT,
 ): Promise<ValidateDpsXmlResult> {
   const { validateXML } = await import('xmllint-wasm');
 
-  const main = RTC_V1_01_SCHEMAS.find((s) => s.fileName === mainSchemaFile);
+  const schemas: readonly RtcSchemaFile[] =
+    layout === 'nt009-r1' ? RTC_NT009_R1_SCHEMAS : RTC_V1_01_SCHEMAS;
+  const main = schemas.find((s) => s.fileName === mainSchemaFile);
   if (!main) {
     throw new Error(`schema principal ${mainSchemaFile} ausente nos bundled XSDs.`);
   }
-  const preload = RTC_V1_01_SCHEMAS.filter((s) => s.fileName !== mainSchemaFile).map((s) => ({
-    fileName: s.fileName,
-    contents: s.contents,
-  }));
+  const preload = schemas
+    .filter((s) => s.fileName !== mainSchemaFile)
+    .map((s) => ({
+      fileName: s.fileName,
+      contents: s.contents,
+    }));
 
   const out = await validateXML({
     xml: [{ fileName: xmlLabel, contents: xml }],
