@@ -47,6 +47,15 @@ function dps(overrides: Partial<InfDPS> = {}): DPS {
 const nt009 = { layout: 'nt009-r1' } as const;
 
 describe('layout nt009-r1 (NT 009 release 1)', () => {
+  it('still emits the required finNFSe when there is no IBSCBS group (MEI / Simples Nacional)', async () => {
+    const { IBSCBS: _ibscbs, ...withoutIbsCbs } = dps().infDPS;
+    const xml = buildDpsXml({ versao: '1.01', infDPS: withoutIbsCbs }, nt009);
+    expect(xml).toMatch(/<tpEmit>1<\/tpEmit><finNFSe>0<\/finNFSe><cLocEmi>/);
+    expect(xml).not.toContain('<IBSCBS>');
+    const result = await validateDpsXml(xml, { ...nt009, throwOnInvalid: false });
+    expect(result.violations).toEqual([]);
+  });
+
   it('moves finNFSe to infDPS right after tpEmit and out of IBSCBS', () => {
     const xml = buildDpsXml(dps(), nt009);
     expect(xml).toMatch(/<tpEmit>1<\/tpEmit><finNFSe>0<\/finNFSe><cLocEmi>/);
