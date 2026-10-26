@@ -62,6 +62,7 @@ import type {
   VServPrest,
 } from './domain.js';
 
+import { FinalidadeNFSe } from './enums.js';
 import { DEFAULT_DPS_LAYOUT, type DpsLayout } from './layout.js';
 
 const NFSE_NS = 'http://www.sped.fazenda.gov.br/nfse';
@@ -113,7 +114,8 @@ function buildInfDPS(inf: InfDPS, layout: DpsLayout): object {
     dCompet: formatDate(inf.dCompet),
     tpEmit: inf.tpEmit,
     ...onlyDefined('cMotivoEmisTI', inf.cMotivoEmisTI),
-    ...(nt009 ? onlyDefined('finNFSe', inf.IBSCBS?.finNFSe) : {}),
+    // NT 009 r1: `finNFSe` é obrigatório em `infDPS`, também sem o grupo IBSCBS (MEI/Simples).
+    ...(nt009 ? { finNFSe: inf.IBSCBS?.finNFSe ?? FinalidadeNFSe.Regular } : {}),
     ...onlyDefined('chNFSeRej', inf.chNFSeRej),
     cLocEmi: inf.cLocEmi,
     ...onlyDefined('subst', inf.subst && buildSubstituicao(inf.subst)),
