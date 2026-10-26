@@ -3,6 +3,7 @@
 import XMLBuilder from 'fast-xml-builder';
 import { RuleViolationError } from '../errors/validation.js';
 import { ATTR_PREFIX } from '../xml/parser.js';
+import { FinalidadeNFSe } from './enums.js';
 import { DEFAULT_DPS_LAYOUT } from './layout.js';
 const NFSE_NS = 'http://www.sped.fazenda.gov.br/nfse';
 const DSIG_NS = 'http://www.w3.org/2000/09/xmldsig#';
@@ -42,7 +43,8 @@ function buildInfDPS(inf, layout) {
         dCompet: formatDate(inf.dCompet),
         tpEmit: inf.tpEmit,
         ...onlyDefined('cMotivoEmisTI', inf.cMotivoEmisTI),
-        ...(nt009 ? onlyDefined('finNFSe', inf.IBSCBS?.finNFSe) : {}),
+        // NT 009 r1: `finNFSe` é obrigatório em `infDPS`, também sem o grupo IBSCBS (MEI/Simples).
+        ...(nt009 ? { finNFSe: inf.IBSCBS?.finNFSe ?? FinalidadeNFSe.Regular } : {}),
         ...onlyDefined('chNFSeRej', inf.chNFSeRej),
         cLocEmi: inf.cLocEmi,
         ...onlyDefined('subst', inf.subst && buildSubstituicao(inf.subst)),
