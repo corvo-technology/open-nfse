@@ -16,10 +16,10 @@ const REPO_ROOT = join(__dirname, '..');
 const OUTPUT = join(REPO_ROOT, 'src', 'nfse', '_rtc-schemas.generated.ts');
 
 // One bundle per DPS layout. `v1.01` is the layout in production until 2026-11-30 (NT 004 v2.0);
-// `nt009-r1` is NT 009 release 1 (Produção Restrita bundle 20261020, production on 2026-12-01).
+// `nt009-r1` is NT 009 release 1 (Produção Restrita bundle 20261124, production on 2026-12-01).
 const BUNDLES = [
   { exportName: 'RTC_V1_01_SCHEMAS', dir: join(REPO_ROOT, 'schemas', '1.01') },
-  { exportName: 'RTC_NT009_R1_SCHEMAS', dir: join(REPO_ROOT, 'schemas', '1.01-prodrest-20261020') },
+  { exportName: 'RTC_NT009_R1_SCHEMAS', dir: join(REPO_ROOT, 'schemas', '1.01-prodrest-20261124') },
 ];
 
 const renderBundle = ({ exportName, dir }) => {

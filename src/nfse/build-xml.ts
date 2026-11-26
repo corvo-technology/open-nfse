@@ -62,7 +62,7 @@ import type {
   VServPrest,
 } from './domain.js';
 
-import { FinalidadeNFSe } from './enums.js';
+import { FinalidadeNFSe, IndicadorDestinatario } from './enums.js';
 import { DEFAULT_DPS_LAYOUT, type DpsLayout } from './layout.js';
 
 const NFSE_NS = 'http://www.sped.fazenda.gov.br/nfse';
@@ -121,6 +121,15 @@ function buildInfDPS(inf: InfDPS, layout: DpsLayout): object {
     ...onlyDefined('subst', inf.subst && buildSubstituicao(inf.subst)),
     prest: buildInfoPrestador(inf.prest),
     ...onlyDefined('toma', inf.toma && buildInfoPessoa(inf.toma)),
+    // NT 009 r1 (XSD 20261124): `indDest`/`dest` saem de `IBSCBS` e vão para `infDPS`, logo após
+    // `toma`. `indDest` é obrigatório mesmo sem o grupo IBSCBS (MEI/Simples) — sem ele a Sefin
+    // responde E1235 ("has invalid child element 'serv' ... expected: 'indDest'").
+    ...(nt009
+      ? {
+          indDest: inf.IBSCBS?.indDest ?? IndicadorDestinatario.TomadorEhDestinatario,
+          ...onlyDefined('dest', inf.IBSCBS?.dest && buildRtcInfoDest(inf.IBSCBS.dest)),
+        }
+      : {}),
     ...onlyDefined('interm', inf.interm && buildInfoPessoa(inf.interm)),
     serv: buildServ(inf.serv, layout),
     valores: buildInfoValores(inf.valores, layout),
@@ -226,7 +235,7 @@ function buildServ(s: Serv, layout: DpsLayout): object {
   return {
     locPrest: buildLocPrest(s.locPrest),
     cServ: buildCServ(s.cServ, layout),
-    ...onlyDefined('comExt', s.comExt && buildComExterior(s.comExt)),
+    ...onlyDefined('comExt', s.comExt && buildComExteriorFor(s.comExt, layout)),
     ...onlyDefined('obra', s.obra && buildInfoObra(s.obra)),
     ...onlyDefined('atvEvento', s.atvEvento && buildAtvEvento(s.atvEvento)),
     ...onlyDefined('infoCompl', s.infoCompl && buildInfoCompl(s.infoCompl)),
@@ -256,6 +265,15 @@ function buildCServ(c: CServ, layout: DpsLayout): object {
     ...onlyDefined('cNBS', c.cNBS),
     ...onlyDefined('cIntContrib', c.cIntContrib),
   };
+}
+
+function buildComExteriorFor(c: ComExterior, layout: DpsLayout): object {
+  if (layout === 'nt009-r1') {
+    throw new Error(
+      "layout 'nt009-r1': o grupo comExt foi reestruturado (vServMoeda → nFatura/vFatura, nDI → nDUIMP, nRE → nDUE) e ainda não é suportado",
+    );
+  }
+  return buildComExterior(c);
 }
 
 function buildComExterior(c: ComExterior): object {
@@ -476,8 +494,13 @@ function buildRtcInfoIbsCbs(r: RtcInfoIbsCbs, layout: DpsLayout): object {
     ...onlyDefined('tpOper', r.tpOper),
     ...onlyDefined('gRefNFSe', r.gRefNFSe && buildInfoRefNFSe(r.gRefNFSe)),
     ...onlyDefined('tpEnteGov', r.tpEnteGov),
-    indDest: r.indDest,
-    ...onlyDefined('dest', r.dest && buildRtcInfoDest(r.dest)),
+    // NT 009 r1: `indDest`/`dest` sobem para `infDPS`.
+    ...(layout === 'nt009-r1'
+      ? {}
+      : {
+          indDest: r.indDest,
+          ...onlyDefined('dest', r.dest && buildRtcInfoDest(r.dest)),
+        }),
     ...onlyDefined('imovel', r.imovel && buildRtcInfoImovelFor(r.imovel, layout)),
     valores: buildRtcInfoValoresIbsCbs(r.valores, layout),
   };

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **NT 009 release 1** (Produção Restrita desde 20/10/2026; Produção em **01/12/2026**) como leiaute **opt-in**: nada muda para quem não passar `layout`. Até 30/11/2026 a produção segue no leiaute da NT 004 v2.0 (`'v1.01'`, default).
 
+### Changed
+
+- **`nt009-r1` segue o bundle XSD 20261124 da Produção Restrita** (`schemas/1.01-prodrest-20261124/`, Sefin 1.6.0). `indDest` (obrigatório) e `dest` saem de `IBSCBS` e passam a `infDPS`, logo após `toma`; sem eles a Sefin rejeita com E1235 ("has invalid child element 'serv' ... expected: 'indDest'"), inclusive em DPS de MEI/Simples sem o grupo IBSCBS (`indDest` = `0` por padrão). O parser lê `indDest`/`dest` de `infDPS` ou de `IBSCBS`. O grupo `comExt` mudou no novo bundle (nFatura/vFatura, nDUIMP, nDUE) e ainda não é suportado no `nt009-r1`.
+
 ### Added
 
 - **`layout: 'v1.01' | 'nt009-r1'`** em `buildDpsXml`, `validateDpsXml`, `EmitOptions` (`emitirDpsPronta`, `emitir`, `emitirEmLote`, `substituir`) e `NfseClientConfig.dpsLayout`. O `'nt009-r1'` serializa a DPS no novo leiaute e valida contra o bundle `schemas/1.01-prodrest-20261020/`:

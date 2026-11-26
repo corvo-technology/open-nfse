@@ -243,7 +243,11 @@ function parseInfDPS(node: XmlObject): InfDPS {
     ...optionalAssign(
       'IBSCBS',
       mapIfPresent(optionalChild(node, 'IBSCBS'), (n) =>
-        parseRtcInfoIbsCbs(n, optionalText(node, 'finNFSe')),
+        parseRtcInfoIbsCbs(n, {
+          finNFSe: optionalText(node, 'finNFSe'),
+          indDest: optionalText(node, 'indDest'),
+          dest: optionalChild(node, 'dest'),
+        }),
       ),
     ),
   };
@@ -261,9 +265,19 @@ function parseSubstituicao(node: XmlObject): Substituicao {
  * `finNFSe` vive em `IBSCBS` no leiaute v1.01 e em `infDPS` na NT 009 r1;
  * `infDpsFinNFSe` é o valor lido de `infDPS` (quando existir).
  */
-function parseRtcInfoIbsCbs(node: XmlObject, infDpsFinNFSe?: string): RtcInfoIbsCbs {
-  const finNFSe = optionalText(node, 'finNFSe') ?? infDpsFinNFSe;
+function parseRtcInfoIbsCbs(
+  node: XmlObject,
+  infDps: {
+    finNFSe?: string | undefined;
+    indDest?: string | undefined;
+    dest?: XmlObject | undefined;
+  } = {},
+): RtcInfoIbsCbs {
+  const finNFSe = optionalText(node, 'finNFSe') ?? infDps.finNFSe;
   if (finNFSe === undefined) throw new InvalidXmlError('elemento <finNFSe> ausente');
+  const indDest = optionalText(node, 'indDest') ?? infDps.indDest;
+  if (indDest === undefined) throw new InvalidXmlError('elemento <indDest> ausente');
+  const dest = optionalChild(node, 'dest') ?? infDps.dest;
   return {
     finNFSe: finNFSe as FinalidadeNFSe,
     ...optionalAssign('indFinal', optionalText(node, 'indFinal') as IndicadorFinal | undefined),
@@ -274,8 +288,8 @@ function parseRtcInfoIbsCbs(node: XmlObject, infDpsFinNFSe?: string): RtcInfoIbs
       'tpEnteGov',
       optionalText(node, 'tpEnteGov') as TipoEnteGovernamental | undefined,
     ),
-    indDest: requireText(node, 'indDest') as IndicadorDestinatario,
-    ...optionalAssign('dest', mapIfPresent(optionalChild(node, 'dest'), parseRtcInfoDest)),
+    indDest: indDest as IndicadorDestinatario,
+    ...optionalAssign('dest', mapIfPresent(dest, parseRtcInfoDest)),
     ...optionalAssign('imovel', mapIfPresent(optionalChild(node, 'imovel'), parseRtcInfoImovel)),
     valores: parseRtcInfoValoresIbsCbs(requireChild(node, 'valores')),
   };

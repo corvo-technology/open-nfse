@@ -56,6 +56,40 @@ describe('layout nt009-r1 (NT 009 release 1)', () => {
     expect(result.violations).toEqual([]);
   });
 
+  it('emits the required indDest in infDPS right after toma even without IBSCBS (Sefin E1235)', async () => {
+    const { IBSCBS: _ibscbs, ...withoutIbsCbs } = dps().infDPS;
+    const xml = buildDpsXml(
+      {
+        versao: '1.01',
+        infDPS: {
+          ...withoutIbsCbs,
+          toma: { identificador: { CPF: '52998224725' }, xNome: 'Tomador' },
+        },
+      },
+      nt009,
+    );
+    expect(xml).toMatch(/<\/toma><indDest>0<\/indDest><serv>/);
+    const result = await validateDpsXml(xml, { ...nt009, throwOnInvalid: false });
+    expect(result.violations).toEqual([]);
+  });
+
+  it('moves indDest and dest from IBSCBS to infDPS', async () => {
+    const xml = buildDpsXml(
+      dps({
+        IBSCBS: {
+          ...ibscbs(),
+          indDest: '1' as never,
+          dest: { identificador: { CNPJ: '00574753000100' }, xNome: 'Destinatário' },
+        },
+      }),
+      nt009,
+    );
+    expect(xml).toMatch(/<\/prest><indDest>1<\/indDest><dest><CNPJ>00574753000100<\/CNPJ>/);
+    expect(xml).not.toMatch(/<IBSCBS>[\s\S]*<indDest>/);
+    const result = await validateDpsXml(xml, { ...nt009, throwOnInvalid: false });
+    expect(result.violations).toEqual([]);
+  });
+
   it('moves finNFSe to infDPS right after tpEmit and out of IBSCBS', () => {
     const xml = buildDpsXml(dps(), nt009);
     expect(xml).toMatch(/<tpEmit>1<\/tpEmit><finNFSe>0<\/finNFSe><cLocEmi>/);
@@ -106,7 +140,7 @@ describe('layout nt009-r1 (NT 009 release 1)', () => {
     expect(xml).toContain('<trib><gIBSCBS><CST>000</CST>');
   });
 
-  it('validates the new layout against the 20261020 XSD and rejects it against the legacy one', async () => {
+  it('validates the new layout against the 20261124 XSD and rejects it against the legacy one', async () => {
     const xml = buildDpsXml(dps(), nt009);
     await expect(validateDpsXml(xml, { layout: 'nt009-r1' })).resolves.toBeUndefined();
     const legacy = await validateDpsXml(xml, { throwOnInvalid: false });
