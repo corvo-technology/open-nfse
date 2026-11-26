@@ -468,6 +468,20 @@ describe('parseNfseXml — NT 009 release 1 layout (synthetic)', () => {
     expect(inf.serv.cServ.xDescServ).toContain('Pagamento de mensalidade plano');
   });
 
+  it('reads indDest and dest from infDPS into IBSCBS (XSD 20261124)', () => {
+    const moved = parseNfseXml(
+      nt009
+        .replace('<indDest>0</indDest>', '')
+        .replace(
+          '</prest>',
+          '</prest><indDest>1</indDest><dest><NIF>N1</NIF><xNome>D</xNome></dest>',
+        ),
+    );
+    const ibscbs = moved.infNFSe.DPS.infDPS.IBSCBS;
+    expect(ibscbs?.indDest).toBe('1');
+    expect(ibscbs?.dest?.xNome).toBe('D');
+  });
+
   it('reads vCalcAjusteBCISSQN into vCalcDR on the NFS-e values', () => {
     const swapped = parseNfseXml(
       nt009.replace('<vLiq>', '<vCalcAjusteBCISSQN>10</vCalcAjusteBCISSQN><vLiq>'),

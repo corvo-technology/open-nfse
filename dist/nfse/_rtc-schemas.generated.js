@@ -6265,6 +6265,15 @@ export const RTC_NT009_R1_SCHEMAS = [
 					<xs:documentation>Ambiente gerador da NFS-e</xs:documentation>
 				</xs:annotation>
 			</xs:element>
+			<xs:element name="verCalcIBSCBS" type="TSVerAplic" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Versão da Calculadora de Tributos (IBS/CBS) que gerou a NFS-e.</xs:documentation>
+					<xs:appinfo>
+						Este campo não deve ser informado nas NFS-e compartilhadas pelos entes municipais. (ambGer = 1).
+						Trata-se de campo gerado pela SEFIN Nacional da NFS-e, ou seja, notas autorizadas/geradas a partir dos emissores públicos nacionais. (ambGer = 2).
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
 			<xs:element name="tpEmis" type="TSTipoEmissao">
 				<xs:annotation>
 					<xs:documentation>
@@ -6330,6 +6339,7 @@ export const RTC_NT009_R1_SCHEMAS = [
 					<xs:documentation>
 						Grupo de informações geradas pelo sistema referentes ao IBS e à CBS
 					</xs:documentation>
+					<xs:appinfo>Para optantes dos Simples Nacional, os grupos IBSCBS só serão obrigatórios a partir de 2027.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="DPS" type="TCDPS">
@@ -6516,8 +6526,9 @@ export const RTC_NT009_R1_SCHEMAS = [
 				<xs:annotation>
 					<xs:documentation>
 						Valor da base de cálculo (BC) do IBS/CBS antes das reduções para cálculo do tributo bruto
-						vBC = vServ - descIncond – (vCalcAjusteBCIBSCBS ou vCalcAjusteBCLocImoveis) – vISSQN – vPIS - vCOFINS (até 2026) ou
-            vBC = vServ - descIncond – (vCalcAjusteBCIBSCBS ou vCalcAjusteBCLocImoveis) – vISSQN (a partir de 2027 até 2032)
+						vBC = vServ - descIncond – (vCalcAjusteBCIBSCBS ou vCalcAjusteBCLocImoveis) – vISSQN + (vAjusteBCIBSCBSComExt) – vPIS - vCOFINS (até 2026)
+						ou
+						vBC = vServ - descIncond – (vCalcAjusteBCIBSCBS ou vCalcAjusteBCLocImoveis) – vISSQN + (vAjusteBCIBSCBSComExt) (a partir de 2027 até 2032)
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
@@ -7015,6 +7026,16 @@ export const RTC_NT009_R1_SCHEMAS = [
 			<xs:element name="toma" type="TCInfoPessoa" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>Grupo de informações do DPS relativas ao Tomador de Serviços</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="indDest" type="TSRTCIndDest">
+				<xs:annotation>
+					<xs:documentation>A respeito do Destinatário dos serviços</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="dest" type="TCRTCInfoDest" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Grupo de informações relativas ao Destinatário</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="interm" type="TCInfoPessoa" minOccurs="0">
@@ -7697,7 +7718,13 @@ export const RTC_NT009_R1_SCHEMAS = [
 						2 - Consumo no Brasil;
 						3 - Movimento Temporário de Pessoas Físicas;
 						4 - Consumo no Exterior;
+						5 - Consumo concomitante no território nacional e exterior;
 					</xs:documentation>
+					<xs:appinfo>
+						O valor 0 deve ser utilizado como opção de preenchimento do campo somente no compartilhamento de NFS-e pelo município com o ADN NFS-e.
+						No caso do tipo 5 - Consumo concomitante no território nacional e exterior: na Importação, informar no campo vServ da DPS apenas a parcela consumida no país; na Exportação, informar no campo vServ da DPS apenas a parcela exportada.
+						Nesse caso, uma NFS-e regular deve ser emitida para a parcela consumida no país (não se enquadrando como exportação).
+					</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="vincPrest" type="TSVincPrest">
@@ -7717,12 +7744,19 @@ export const RTC_NT009_R1_SCHEMAS = [
 			</xs:element>
 			<xs:element name="tpMoeda" type="TSCodMoeda">
 				<xs:annotation>
-					<xs:documentation>Identifica a moeda da transação comercial</xs:documentation>
+					<xs:documentation>Identifica a moeda da transação comercial. O usuário deve informar o código da moeda.</xs:documentation>
+					<xs:appinfo>O código da moeda informado deve ser válido e estar vigente na data de competência da emissão da NFS-e, conforme tabela de moedas do Banco Central do Brasil.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="vServMoeda" type="TSDec15V2">
+			<xs:element name="nFatura" type="TSNumFatura" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>Valor do serviço prestado expresso em moeda estrangeira especificada em tpmoeda</xs:documentation>
+					<xs:documentation>Número da identificação da fatura de serviços ou do documento que comprove a transação (DECRETO Nº 12.955, DE 29 DE ABRIL DE 2026, Art. 74 § 1º )</xs:documentation>
+					<xs:appinfo>Preencher apenas quando exigido documento fiscal para acobertar a importação do serviço, nos termos do Art. 74, §1º, do Decreto nº 12.955/2026 (aguarda ato conjunto RFB/CGIBS que definirá o escopo exato da exigência).</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vFatura" type="TSDec15V2" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Valor total da fatura de serviços ou do documento que comprove a transação, expresso na moeda identificada em tpMoeda (DECRETO Nº 12.955, DE 29 DE ABRIL DE 2026, Art. 74, §1º).</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="mecAFComexP" type="TSMecAFComExPrest">
@@ -7739,6 +7773,7 @@ export const RTC_NT009_R1_SCHEMAS = [
 						07 - PROEX - EQUALIZAÇÃO
 						08 - PROEX - Financiamento;
 					</xs:documentation>
+					<xs:appinfo>Campo disponível na nota do prestador. O valor 00 deve ser utilizado como opção de preenchimento do campo somente no compartilhamento de NFS-e pelo municipio com o ADN NFS-e.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="mecAFComexT" type="TSMecAFComExToma">
@@ -7773,6 +7808,7 @@ export const RTC_NT009_R1_SCHEMAS = [
 						25 - Serviços de avaliação da conformidade vinculados aos Acordos da OMC;
 						26 - ZPE;
 					</xs:documentation>
+					<xs:appinfo>Campo disponível na nota do tomador. O valor 00 deve ser utilizado como opção de preenchimento do campo somente no compartilhamento de NFS-e pelo municipio com o ADN NFS-e.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="movTempBens" type="TSMovTempBens">
@@ -7781,28 +7817,36 @@ export const RTC_NT009_R1_SCHEMAS = [
 						Vínculo da Operação à Movimentação Temporária de Bens:
 						0 - Desconhecido (tipo não informado na nota de origem);
 						1 - Não;
-						2 - Vinculada - Declaração de Importação;
-						3 - Vinculada - Declaração de Exportação;
+						2 - Vinculada - Declaração Única de Importação;
+						3 - Vinculada - Declaração Única de Exportação;
 					</xs:documentation>
+					<xs:appinfo>O valor 0 deve ser utilizado como opção de preenchimento do campo somente no compartilhamento de NFS-e pelo municipio com o ADN NFS-e.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="nDI" type="TSNumDocImport" minOccurs="0">
+			<xs:element name="nDUIMP" type="TSNumDUIMP" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>Número da Declaração de Importação (DI/DSI/DA/DRI-E) averbado</xs:documentation>
+					<xs:documentation>Número da Declaração Única de Importação (DUIMP)</xs:documentation>
+					<xs:appinfo>Este campo deve ser preenchido se for a prestação de serviço relacionado à cobrança do serviço de importação de um bem material.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="nRE" type="TSNumRegExport" minOccurs="0">
+			<xs:element name="nDUE" type="TSNumDUE" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>Número do Registro de Exportação (RE) averbado</xs:documentation>
+					<xs:documentation>Número da Declaração Única de Exportação (DU-E)</xs:documentation>
+					<xs:appinfo>Este campo deve ser preenchido se for a prestação de serviço relacionado à cobrança do serviço de exportação de um bem material.</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="mdic" type="TSEnvMDIC">
 				<xs:annotation>
 					<xs:documentation>
-						Compartilhar as informações da NFS-e gerada a partir desta DPS com a Secretaria de Comércio Exterior:
+						Indicador se a NFS-e deverá ser disponibilizada ao MDIC.
 						0 - Não enviar para o MDIC;
 						1 - Enviar para o MDIC;
 					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="nContCambio" type="TSNumContCambio" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Número da identificação do contrato de câmbio ou do documento que comprove o pagamento (Art. 74, § 1º, do DECRETO Nº 12.955, DE 29 DE ABRIL DE 2026, que Regulamenta a Contribuição Social sobre Bens e Serviços – CBS e dá outras providências.)</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 		</xs:sequence>
@@ -7823,6 +7867,15 @@ export const RTC_NT009_R1_SCHEMAS = [
 			<xs:element name="dtFim" type="TSData">
 				<xs:annotation>
 					<xs:documentation>Data de fim da atividade de evento. Ano, Mês e Dia (AAAA-MM-DD)</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="cMun" type="TSCodMunIBGE" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Código do município da localidade do evento. (Tabela do IBGE)</xs:documentation>
+					<xs:appinfo>
+						Essa informação só deve ser fornecida pelo emitente quando: 1) Forem serviços dos subitens 12.13 e 17.10; e 2) O local do evento for diverso do local da prestação do serviço.
+						Para os demais casos, o local do evento será o próprio local da prestação do serviço e, portanto, esse campo não deverá ser informado.
+					</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:choice>
@@ -7993,7 +8046,11 @@ export const RTC_NT009_R1_SCHEMAS = [
 			</xs:element>
 			<xs:element name="vServ" type="TSDec15V2">
 				<xs:annotation>
-					<xs:documentation>Valor monetário do serviço (R$). (Para os códigos de tributação nacional do subitem 99.03, vServ = pCopropriedade x vTotOper)</xs:documentation>
+					<xs:documentation>
+						Valor monetário do serviço (R$).
+						OBS1: Para os códigos de tributação nacional do subitem 99.03 (locações e equiparados), vServ = pCopropriedade x vTotOper
+						OBS2: Para os códigos de tributação nacional do subitem 99.05 (condomínios), vServ = ∑ vCobranca.
+					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 		</xs:sequence>
@@ -8003,12 +8060,20 @@ export const RTC_NT009_R1_SCHEMAS = [
 		<xs:sequence>
 			<xs:element name="vDescIncond" type="TSDec15V2" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>Valor monetário do desconto incondicionado (R$). (Para os códigos de tributação nacional do subitem 99.03, vDescIncond = pCopropriedade x vDescIncondTot)</xs:documentation>
+					<xs:documentation>
+						Valor monetário do desconto incondicionado (R$).
+						OBS1: Para os códigos de tributação nacional do subitem 99.03, vDescIncond = pCopropriedade x vDescIncondTot
+						OBS2: Para os códigos de tributação nacional do subitem 99.05 (condomínios), vDescIncond = ∑ vDesconto do tipo (tpDesconto) 1 - Desconto Incondicionado.
+					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="vDescCond" type="TSDec15V2" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>Valor monetário do desconto condicionado (R$). (Para os códigos de tributação nacional do subitem 99.03, vDescCond = pCopropriedade x vDescCondTot)</xs:documentation>
+					<xs:documentation>
+						Valor monetário do desconto condicionado (R$).
+						OBS1: Para os códigos de tributação nacional do subitem 99.03, vDescCond = pCopropriedade x vDescCondTot
+						OBS2: Para os códigos de tributação nacional do subitem 99.05 (condomínios), vDescCond = ∑ vDesconto do tipo (tpDesconto) 2 - Desconto Condicionado.
+					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 		</xs:sequence>
@@ -8037,6 +8102,11 @@ export const RTC_NT009_R1_SCHEMAS = [
 					<xs:documentation>
 						Grupo de informações de documento utilizado para ajuste dos valores de base de cálculo (ISSQN e/ou IBS/CBS)
 					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vAjusteBCIBSCBSComExt" type="TSDec15V2Neg" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Valor monetário padrão para ajuste dos valores de base de cálculo do IBS/CBS nos casos de Comércio Exterior.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 		</xs:sequence>
@@ -8542,20 +8612,6 @@ export const RTC_NT009_R1_SCHEMAS = [
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="indDest" type="TSRTCIndDest">
-				<xs:annotation>
-					<xs:documentation>
-						A respeito do Destinatário dos serviços
-					</xs:documentation>
-				</xs:annotation>
-			</xs:element>
-			<xs:element name="dest" type="TCRTCInfoDest" minOccurs="0">
-				<xs:annotation>
-					<xs:documentation>
-						Grupo de informações relativas ao Destinatário
-					</xs:documentation>
-				</xs:annotation>
-			</xs:element>
 			<xs:element name="imovel" type="TCRTCInfoImovel" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>
@@ -8567,6 +8623,14 @@ export const RTC_NT009_R1_SCHEMAS = [
 				<xs:annotation>
 					<xs:documentation>
 						Grupo de informações relativas aos bens móveis objetos de locação
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="condominios" type="TCRTCInfoCondominios" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						Grupo de informações relativas às operações de condomínios.
+						Grupo só é admitido quando se tratar de atividades de condomínio - subitem 99.05 do cTribNac.
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
@@ -8591,28 +8655,28 @@ export const RTC_NT009_R1_SCHEMAS = [
 			</xs:element>
 		</xs:sequence>
 	</xs:complexType>
-	<!--TIPO COMPLEXO INFORMAÇÕES RELATIVAS AO DESTINATÁRIO DO SERVIÇO IBSCBS-->
+	<!--TIPO COMPLEXO INFORMAÇÕES RELATIVAS AO DESTINATÁRIO DO SERVIÇO-->
 	<xs:complexType name="TCRTCInfoDest">
 		<xs:sequence>
 			<xs:choice>
 				<xs:element name="CNPJ" type="TSCNPJ">
 					<xs:annotation>
 						<xs:documentation>
-							Número da inscrição no Cadastro Nacional de Pessoa Jurídica (CNPJ) do Destinatário do serviço
+							Código da inscrição no Cadastro Nacional de Pessoa Jurídica (CNPJ) do destinatário de serviço
 						</xs:documentation>
 					</xs:annotation>
 				</xs:element>
 				<xs:element name="CPF" type="TSCPF">
 					<xs:annotation>
 						<xs:documentation>
-							Número da inscrição no Cadastro de Pessoa Física (CPF) do Destinatário do serviço
+							Número da inscrição no Cadastro Nacional de Pessoa Física (CPF) do destinatário do serviço
 						</xs:documentation>
 					</xs:annotation>
 				</xs:element>
 				<xs:element name="NIF" type="TSNIF">
 					<xs:annotation>
 						<xs:documentation>
-							Número de Identificação Fiscal fornecido por órgão de administração tributária no exterior
+							Número de identificação fiscal fornecido por órgão de administração tributária no exterior
 						</xs:documentation>
 					</xs:annotation>
 				</xs:element>
@@ -8630,21 +8694,21 @@ export const RTC_NT009_R1_SCHEMAS = [
 			<xs:element name="xNome" type="TSDesc150">
 				<xs:annotation>
 					<xs:documentation>
-						Nome / Nome Empresarial do do Destinatário do serviço
+						Nome / Nome Empresarial do destinatário
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="end" type="TCEndereco" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>
-						Grupo de informações do endereço do Destinatário do serviço
+						Grupo de informações do endereço do destinatário do serviço.
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="fone" type="TSTelefone" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>
-						Número do telefone do Destinatário do serviço
+						Número do telefone do destinatário.
 						(Preencher com o Código DDD + número do telefone. Nas operações com exterior é permitido informar o
 						código do país + código da localidade + número do telefone)
 					</xs:documentation>
@@ -8652,7 +8716,7 @@ export const RTC_NT009_R1_SCHEMAS = [
 			</xs:element>
 			<xs:element name="email" type="TSEmail" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>E-mail do Destinatário do serviço</xs:documentation>
+					<xs:documentation>E-mail do destinatário.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 		</xs:sequence>
@@ -8703,6 +8767,140 @@ export const RTC_NT009_R1_SCHEMAS = [
 			</xs:element>
 		</xs:sequence>
 	</xs:complexType>
+	<!--TIPO COMPLEXO INFORMAÇÕES RELATIVAS ÀS OPERAÇÕES DE CONDOMÍNIOS IBSCBS-->
+	<xs:complexType name="TCRTCInfoCondominios">
+		<xs:sequence>
+			<xs:element name="dVencOrig" type="TSData">
+				<xs:annotation>
+					<xs:documentation>
+						Data de vencimento original
+						Ano, Mês e Dia (AAAA-MM-DD)
+						(Informar a data de vencimento original das taxas e demais valores condominiais cobrados do condômino)
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="gCobranca" type="TCRTCCobrancaCondominio" maxOccurs="20">
+				<xs:annotation>
+					<xs:documentation>
+						Grupo de informações das cobranças das taxas e demais valores condominiais cobrados do condômino.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="gDesconto" type="TCRTCDescontoCondominio" minOccurs="0" maxOccurs="10">
+				<xs:annotation>
+					<xs:documentation>
+						Grupo de informações dos descontos concedidos nas taxas e demais valores condominiais cobrados do condômino.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!--TIPO COMPLEXO INFORMAÇÕES DAS COBRANÇAS DAS TAXAS E DEMAIS VALORES CONDOMINIAIS IBSCBS-->
+	<xs:complexType name="TCRTCCobrancaCondominio">
+		<xs:sequence>
+			<xs:element name="tpCobranca" type="TSRTCTpCobranca">
+				<xs:annotation>
+					<xs:documentation>
+						Tipo da cobrança:
+						01 - Condomínio Ordinário;
+						02 - Condomínio Privativo;
+						03 - Fundo De Promoção E Propaganda (FPP);
+						04 - Impostos e Taxas;
+						05 - Fundo de Reserva;
+						99 - Outra Cobrança;
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="xTpCobranca" type="TSDesc150" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						Descrição do tipo da cobrança.
+						Somente deve ser informado quando tpCobranca = 99 (Outra Cobrança).
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vCobranca" type="TSDec15V2">
+				<xs:annotation>
+					<xs:documentation>
+						Valor da cobrança em R$.
+						O somatório dos valores informados em vCobranca resultará no valor da operação (vServ).
+						vCobranca = ∑ vDetCobranca (quando informado)
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="gDetCobranca" type="TCRTCDetCobrancaCondominio" minOccurs="0" maxOccurs="20">
+				<xs:annotation>
+					<xs:documentation>
+						Grupo de informações relativas ao detalhamento das cobranças.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!--TIPO COMPLEXO INFORMAÇÕES DO DETALHAMENTO DAS COBRANÇAS CONDOMINIAIS IBSCBS-->
+	<xs:complexType name="TCRTCDetCobrancaCondominio">
+		<xs:sequence>
+			<xs:element name="tpDetCobranca" type="TSRTCTpDetCobranca">
+				<xs:annotation>
+					<xs:documentation>
+						Tipo de detalhamento da cobrança (ver domínio em TSRTCTpDetCobranca).
+						A informação do grupo de detalhamento das cobranças (gDetCobranca) é facultativa. Contudo, caso seja informado,
+						o valor de tpDetCobranca deve ter correlação com o valor informado em tpCobranca:
+						- Se tpCobranca = 01 então tpDetCobranca = (001, 002, 003, 004, 005, 006, 018, 035, 036 ou 999);
+						- Se tpCobranca = 02 então tpDetCobranca = (007, 008, 009, 010, 011, 012, 013, 014, 017, 018, 019, 023, 025, 026, 027, 029, 031, 032, 033, 034 ou 999);
+						- Se tpCobranca = 03 então tpDetCobranca = (018, 028 ou 999);
+						- Se tpCobranca = 04 então tpDetCobranca = (015, 016, 020, 021, 022, 024 ou 999);
+						- Se tpCobranca = 05 então tpDetCobranca = (018, 030 ou 999);
+						- Se tpCobranca = 99 então tpDetCobranca pode ter qualquer valor;
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="xTpDetCobranca" type="TSDesc150" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						Descrição do tipo de detalhamento da cobrança.
+						Somente deve ser informado quando tpDetCobranca = 999.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vDetCobranca" type="TSDec15V2">
+				<xs:annotation>
+					<xs:documentation>
+						Valor detalhado da cobrança em R$ que irá compor vCobranca
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!--TIPO COMPLEXO INFORMAÇÕES DOS DESCONTOS CONCEDIDOS PELO CONDOMÍNIO IBSCBS-->
+	<xs:complexType name="TCRTCDescontoCondominio">
+		<xs:sequence>
+			<xs:element name="tpDesconto" type="TSRTCTpDesconto">
+				<xs:annotation>
+					<xs:documentation>
+						Tipo do desconto:
+						1 - Desconto Incondicionado;
+						2 - Desconto Condicionado;
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vDesconto" type="TSDec15V2">
+				<xs:annotation>
+					<xs:documentation>
+						Valor do desconto em R$.
+						Os valores informados em vDesconto devem corresponder aos valores de vDescIncond e vDescCond, conforme o tipo de desconto (tpDesconto) informado.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="xTpDesconto" type="TSDesc150">
+				<xs:annotation>
+					<xs:documentation>
+						Descrição do tipo do desconto aplicado pelo Condomínio.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
 	<!--TIPO COMPLEXO INFORMAÇÕES RELATIVAS AOS VALORES DO SERVIÇO PRESTADO IBSCBS-->
 	<xs:complexType name="TCRTCInfoValoresIBSCBS">
 		<xs:sequence>
@@ -8723,6 +8921,10 @@ export const RTC_NT009_R1_SCHEMAS = [
 					<xs:documentation>
 						Código de Situação Tributária do IBS e da CBS
 					</xs:documentation>
+					<xs:appinfo>
+						Os códigos de situação tributária do IBS/CBS serão publicados nos Informes Técnicos, assim como ocorre com os documentos fiscais eletrônicos (NF-e, NFC-e, CT-e) em relação às regras previstas na Reforma Tributária.
+						https://www.nfe.fazenda.gov.br/portal/informe.aspx?ehCTG=false
+					</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="cClassTrib" type="TSRTCCodClassTrib">
@@ -8730,6 +8932,10 @@ export const RTC_NT009_R1_SCHEMAS = [
 					<xs:documentation>
 						Código de Classificação Tributária do IBS e da CBS
 					</xs:documentation>
+					<xs:appinfo>
+						Os códigos de classificação tributária do IBS/CBS serão publicados nos Informes Técnicos, assim como ocorre com os documentos fiscais eletrônicos (NF-e, NFC-e, CT-e) em relação às regras previstas na Reforma Tributária.
+						https://www.nfe.fazenda.gov.br/portal/informe.aspx?ehCTG=false
+					</xs:appinfo>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="gIBSCBS" type="TCRTCInfoTributosSitClas" minOccurs="0">
@@ -9754,6 +9960,10 @@ export const RTC_NT009_R1_SCHEMAS = [
         Informar o identificador precedido do literal "NFS". A regra de formação do identificador de 53 posições da NFS-e é:
         "NFS" + Cód.Mun.(7) + Amb.Ger.(1) + Tipo de Inscrição Federal(1) + Inscrição Federal(14) + No.NFS-e(13) + AnoMes Emis.(4) + Cód.Num.(9) + DV(1)
       </xs:documentation>
+      <xs:appinfo>
+        A adoção do CNPJ alfanumérico não demanda ajustes na regra de cálculo do dígito verificador (DV) do "id" da NFS-e, uma vez que o algoritmo atualmente empregado, baseado no módulo 11, permanece plenamente aplicável.
+        A metodologia de cálculo admite o tratamento de caracteres alfanuméricos por meio de sua representação numérica, preservando a consistência e a validade do processo de geração e validação do DV.
+      </xs:appinfo>
     </xs:annotation>
     <xs:restriction base="xs:string">
       <xs:whiteSpace value="preserve"/>
@@ -10311,8 +10521,9 @@ export const RTC_NT009_R1_SCHEMAS = [
         0 - Desconhecido (tipo não informado na nota de origem);
         1 - Transfronteiriço;
         2 - Consumo no Brasil;
-        3 - Presença Comercial no Exterior;
-        4 - Movimento Temporário de Pessoas Físicas;
+        3 - Movimento Temporário de Pessoas Físicas;
+        4 - Consumo no Exterior;
+        5 - Consumo concomitante no território nacional e exterior;
       </xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:string">
@@ -10322,6 +10533,7 @@ export const RTC_NT009_R1_SCHEMAS = [
       <xs:enumeration value="2"/>
       <xs:enumeration value="3"/>
       <xs:enumeration value="4"/>
+      <xs:enumeration value="5"/>
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="TSVincPrest">
@@ -10448,8 +10660,8 @@ export const RTC_NT009_R1_SCHEMAS = [
         Vínculo da Operação à Movimentação Temporária de Bens:
         0 - Desconhecido (tipo não informado na nota de origem);
         1 - Não;
-        2 - Vinculada - Declaração de Importação;
-        3 - Vinculada - Declaração de Exportação;
+        2 - Vinculada - Declaração Única de Importação;
+        3 - Vinculada - Declaração Única de Exportação;
       </xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:string">
@@ -10492,22 +10704,42 @@ export const RTC_NT009_R1_SCHEMAS = [
       <xs:enumeration value="10"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:simpleType name="TSNumDocImport">
+  <xs:simpleType name="TSNumDUIMP">
     <xs:annotation>
-      <xs:documentation>Número da Declaração de Importação (DI/DSI/DA/DRI-E) averbado</xs:documentation>
+      <xs:documentation>Número da Declaração Única de Importação (DUIMP)</xs:documentation>
     </xs:annotation>
     <xs:restriction base="TSString">
-      <xs:minLength value="1"/>
-      <xs:maxLength value="12"/>
+      <xs:minLength value="15"/>
+      <xs:maxLength value="15"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:simpleType name="TSNumRegExport">
+  <xs:simpleType name="TSNumDUE">
     <xs:annotation>
-      <xs:documentation>Número do Registro de Exportação (RE) averbado</xs:documentation>
+      <xs:documentation>Número da Declaração Única de Exportação (DU-E)</xs:documentation>
     </xs:annotation>
     <xs:restriction base="TSString">
-      <xs:minLength value="1"/>
-      <xs:maxLength value="12"/>
+      <xs:minLength value="14"/>
+      <xs:maxLength value="14"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TSNumContCambio">
+    <xs:annotation>
+      <xs:documentation>Número da identificação do contrato de câmbio ou do documento que comprove o pagamento</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:maxLength value="20"/>
+      <xs:pattern value="[0-9]{1,20}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TSNumFatura">
+    <xs:annotation>
+      <xs:documentation>Número da identificação da fatura de serviços ou do documento que comprove a transação</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:maxLength value="20"/>
+      <xs:pattern value="[0-9]{1,20}"/>
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="TSEnvMDIC">
@@ -11172,6 +11404,15 @@ export const RTC_NT009_R1_SCHEMAS = [
       <xs:pattern value="0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,14}(\\.[0-9]{2})?"/>
     </xs:restriction>
   </xs:simpleType>
+  <xs:simpleType name="TSDec15V2Neg">
+	    <xs:annotation>
+		    <xs:documentation>Valor decimal com sinal, com 1 a 15 dígitos mais 2 casas decimais</xs:documentation>
+	    </xs:annotation>
+	    <xs:restriction base="xs:string">
+		    <xs:whiteSpace value="preserve"/>
+		    <xs:pattern value="-?(0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,14}(\\.[0-9]{2})?)"/>
+	    </xs:restriction>
+  </xs:simpleType>	
   <xs:simpleType name="TSDec1V2">
     <xs:annotation>
       <xs:documentation>Valor decimal com 1 dígito mais 2 casas decimais</xs:documentation>
@@ -11580,6 +11821,126 @@ export const RTC_NT009_R1_SCHEMAS = [
 			<xs:whiteSpace value="preserve"/>
 			<xs:maxLength value="8"/>
 			<xs:pattern value="[0-9]{8}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="TSRTCTpCobranca">
+		<xs:annotation>
+			<xs:documentation>
+				Tipo da cobrança das taxas e demais valores condominiais:
+				01 - Condomínio Ordinário;
+				02 - Condomínio Privativo;
+				03 - Fundo De Promoção E Propaganda (FPP);
+				04 - Impostos e Taxas;
+				05 - Fundo de Reserva;
+				99 - Outra Cobrança;
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="preserve"/>
+			<xs:enumeration value="01"/>
+			<xs:enumeration value="02"/>
+			<xs:enumeration value="03"/>
+			<xs:enumeration value="04"/>
+			<xs:enumeration value="05"/>
+			<xs:enumeration value="99"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="TSRTCTpDetCobranca">
+		<xs:annotation>
+			<xs:documentation>
+				Tipo de detalhamento da cobrança das taxas e demais valores condominiais:
+				001 - Cond. Comum CRD;
+				002 - Cond. Comum M2;
+				003 - Cond. Comum Fixo;
+				004 - Cond. Comum Fração;
+				005 - Cond. Comum Percentual;
+				006 - Condomínio CMM;
+				007 - Energia Elétrica;
+				008 - Água;
+				009 - Ar Condicionado;
+				010 - Telefone;
+				011 - Internet;
+				012 - Controle de Pragas;
+				013 - Exaustão;
+				014 - Gás;
+				015 - IPTU;
+				016 - Taxa Área;
+				017 - Manutenção;
+				018 - Multa;
+				019 - Seguro;
+				020 - Taxa Bombeiro;
+				021 - Taxa Administração;
+				022 - Taxa Foro;
+				023 - Limpeza;
+				024 - Taxa de Lixo;
+				025 - Tapume;
+				026 - Instalação Alarme;
+				027 - Segurança;
+				028 - Fundo de Promoção e Propaganda;
+				029 - Análise de Projeto;
+				030 - Fundo de Reserva;
+				031 - Laudos e Vistorias;
+				032 - Detecção de Fumaça;
+				033 - Reanálise de Projeto;
+				034 - Taxa Extra;
+				035 - Área Vaga;
+				036 - Condomínio Irrecuperável;
+				999 - Outro;
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="preserve"/>
+			<xs:enumeration value="001"/>
+			<xs:enumeration value="002"/>
+			<xs:enumeration value="003"/>
+			<xs:enumeration value="004"/>
+			<xs:enumeration value="005"/>
+			<xs:enumeration value="006"/>
+			<xs:enumeration value="007"/>
+			<xs:enumeration value="008"/>
+			<xs:enumeration value="009"/>
+			<xs:enumeration value="010"/>
+			<xs:enumeration value="011"/>
+			<xs:enumeration value="012"/>
+			<xs:enumeration value="013"/>
+			<xs:enumeration value="014"/>
+			<xs:enumeration value="015"/>
+			<xs:enumeration value="016"/>
+			<xs:enumeration value="017"/>
+			<xs:enumeration value="018"/>
+			<xs:enumeration value="019"/>
+			<xs:enumeration value="020"/>
+			<xs:enumeration value="021"/>
+			<xs:enumeration value="022"/>
+			<xs:enumeration value="023"/>
+			<xs:enumeration value="024"/>
+			<xs:enumeration value="025"/>
+			<xs:enumeration value="026"/>
+			<xs:enumeration value="027"/>
+			<xs:enumeration value="028"/>
+			<xs:enumeration value="029"/>
+			<xs:enumeration value="030"/>
+			<xs:enumeration value="031"/>
+			<xs:enumeration value="032"/>
+			<xs:enumeration value="033"/>
+			<xs:enumeration value="034"/>
+			<xs:enumeration value="035"/>
+			<xs:enumeration value="036"/>
+			<xs:enumeration value="999"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="TSRTCTpDesconto">
+		<xs:annotation>
+			<xs:documentation>
+				Tipo do desconto aplicado pelo Condomínio:
+				1 - Desconto Incondicionado;
+				2 - Desconto Condicionado;
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="preserve"/>
+			<xs:enumeration value="1"/>
+			<xs:enumeration value="2"/>
 		</xs:restriction>
 	</xs:simpleType>
 </xs:schema>
